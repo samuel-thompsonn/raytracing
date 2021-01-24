@@ -7,13 +7,21 @@ public abstract class HomogeneousShape implements RayShape {
   private double myTransparency;
 
   public HomogeneousShape(double[] color, double reflectivity, double transparency) {
-    myColor = color;
+    myColor = checkColor(color);
     myReflectivity = reflectivity;
     myTransparency = transparency;
   }
 
+  private double[] checkColor(double[] color) {
+    return new double[] {
+            Math.max(Math.min(color[0],1.0),0.0),
+            Math.max(Math.min(color[1],1.0),0.0),
+            Math.max(Math.min(color[2],1.0),0.0)
+    };
+  }
+
   @Override
-  public double[] getColor() {
+  public double[] getColor(double[] surfacePoint) {
     return myColor;
   }
 

@@ -46,7 +46,7 @@ public class TriPlane extends HomogeneousShape {
     }
     double numerator = LinearUtil.dotProduct(myNormal,LinearUtil.vectorSubtract(myPoints.get(0),eye));
     double scalar = numerator/denominator;
-    if (Math.abs(scalar) <= TOLERANCE_MARGIN) {
+    if (scalar <= TOLERANCE_MARGIN) { //Negative scalars should not count.
       return null;
     }
     double[] intersectionPoint = LinearUtil.vectorAdd(eye,LinearUtil.vectorScale(scalar,direction));
@@ -87,7 +87,7 @@ public class TriPlane extends HomogeneousShape {
     }
     double minY = myPoints.get(0)[secondIndex];
     for (double[] triPoint : myPoints) {
-      if (triPoint[1] < minY) {
+      if (triPoint[secondIndex] < minY) {
         minY = triPoint[1];
       }
     }
@@ -97,6 +97,14 @@ public class TriPlane extends HomogeneousShape {
         maxY = triPoint[secondIndex];
       }
     }
+    if (minY < -1 && secondIndex == 2) {
+      System.out.println("minZ is too low!");
+      System.out.println("minZ = " + minY);
+      System.out.println("Vertex z-values:");
+      for (double[] vert : myPoints) {
+        System.out.println("vert[2] = " + vert[2]);
+      }
+    }
 //    if ((point[0] > minX && point[0] < maxX && point[1] > minY && point[1] < maxY)
 //    && point[2] > 1.0) {
 //      System.out.println("minY = " + minY);
@@ -104,6 +112,22 @@ public class TriPlane extends HomogeneousShape {
 //      System.out.println("point[1] = " + point[1]);
 //      System.out.println("point[1]>maxY = " + (point[1] > maxY));
 //    }
-    return (point[firstIndex] > minX && point[firstIndex] < maxX && point[secondIndex] > minY && point[secondIndex] < maxY);
+    if (point[firstIndex] > minX && point[firstIndex] < maxX && point[secondIndex] > minY && point[secondIndex] < maxY) {
+      return pointInPlaneBoundsPrecise(point,firstIndex,secondIndex);
+    }
+    return false;
+  }
+
+  private boolean pointInPlaneBoundsPrecise(double[] point, int firstIndex, int secondIndex) {
+    return (sameSideOfLine(myPoints.get(0),myPoints.get(1),point,myPoints.get(2),firstIndex,secondIndex) &&
+            sameSideOfLine(myPoints.get(2),myPoints.get(0),point,myPoints.get(1),firstIndex,secondIndex) &&
+            sameSideOfLine(myPoints.get(1),myPoints.get(2),point,myPoints.get(0),firstIndex,secondIndex));
+  }
+
+  private boolean sameSideOfLine(double[] lineStart, double[] lineEnd, double[] firstPoint, double[] secondPoint, int firstIndex, int secondIndex) {
+    double slope = (lineEnd[secondIndex] - lineStart[secondIndex]) / (lineEnd[firstIndex] - lineStart[firstIndex]);
+    double intercept = (slope * (-1) * lineStart[firstIndex]) + lineStart[secondIndex];
+    return ((secondPoint[secondIndex] >= (slope * secondPoint[firstIndex]) + intercept - TOLERANCE_MARGIN)
+            == firstPoint[secondIndex] >= (slope * firstPoint[firstIndex]) + intercept - TOLERANCE_MARGIN);
   }
 }

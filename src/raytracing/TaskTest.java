@@ -19,6 +19,7 @@ import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -26,7 +27,7 @@ public class TaskTest extends Application {
 
   public static final int STALL_CYCLES = 100;
   public static final int SIDE_LENGTH = 512;
-  public static final int SECTOR_SIZE = 64;
+  public static final int SECTOR_SIZE = 512;
   public static final double SCENE_SIZE = 512;
   private int numCompletedThreads = 0;
   private RayTraceModel myModel;
@@ -37,6 +38,7 @@ public class TaskTest extends Application {
   private Sphere movableSphere;
   private Sphere largerSphere;
   private int numFrameIterations; //Having this thing is TERRIBLE design and suggests a need for a new class.
+  private Scene myScene;
 
   @Override
   public void start(Stage primaryStage) throws Exception {
@@ -64,9 +66,9 @@ public class TaskTest extends Application {
     long elapsed = System.currentTimeMillis() - before;
     System.out.println("Clearing screen takes " + elapsed + " milliseconds.");
 
-    Scene scene = new Scene(imageViewGroup, SCENE_SIZE, SCENE_SIZE);
+    myScene = new Scene(imageViewGroup, SCENE_SIZE, SCENE_SIZE);
 
-    scene.setOnKeyPressed(event -> {
+    myScene.setOnKeyPressed(event -> {
       if (event.getCode().equals(KeyCode.SPACE)) {
         System.out.println("System time: " + System.currentTimeMillis());
         for (int i = 0; i < SIDE_LENGTH; i ++) {
@@ -128,7 +130,7 @@ public class TaskTest extends Application {
     });
 
     primaryStage.setTitle("JavaFX multithreading API test");
-    primaryStage.setScene(scene);
+    primaryStage.setScene(myScene);
     primaryStage.show();
   }
 
@@ -150,10 +152,9 @@ public class TaskTest extends Application {
     model.setNumBounces(1);
     model.setImageSize(SIDE_LENGTH, SIDE_LENGTH);
     model.setCameraPos(new double[]{0,0,0});
-    model.setBackgroundColor(new double[]{0.1,0.1,0.1});
+    model.setBackgroundColor(new double[]{0,0,0});
 
-    largerSphere = new Sphere(new double[]{4,0.4,0},1.2,new double[]{1.0,0.7,0.0},0.8);
-    largerSphere.setTransparency(0.4);
+    largerSphere = new Sphere(new double[]{4,0.4,0},1.2,new double[]{1.0,0.7,0.0});
 
     movableSphere = new Sphere(new double[]{4,0.4,0.8},0.5,new double[]{0.8,0.1,0.1});
     movableSphere.setReflectivity(0.1);
@@ -168,19 +169,20 @@ public class TaskTest extends Application {
 //    ));
 
     TriPlane plane = new TriPlane(List.of(
-            new double[]{3,0,0},
-            new double[]{3,0,3},
-            new double[]{4,6,3}
+            new double[]{3,0,-1},
+            new double[]{3,0,2},
+            new double[]{4,6,2}
     ));
 
     TriPlane nearbyPlane = new TriPlane(List.of(
-            new double[]{2.8,0,0},
-            new double[]{4,-6,3},
-            new double[]{2.8,0,3}
+            new double[]{2.8,0,-1},
+            new double[]{4,-6,2},
+            new double[]{2.8,0,2}
     ));
 
-    Sphere frontSphere = new Sphere(new double[]{1.7,1.5,1.5},0.7,new double[]{1.0,0,0});
-    frontSphere.setReflectivity(0.3);
+    double[] earthCenter = new double[]{3.7,0,0.0};
+    Sphere earthSphere = new Sphere(earthCenter,1.0,new double[]{1.0,0,0});
+    earthSphere.setTexture("raytracing/rayshape/earthtexture_old.jpg");
 
 //    TriPlane secondPlane = new TriPlane(List.of(
 //            new double[]{1,0,1},
@@ -189,8 +191,34 @@ public class TaskTest extends Application {
 //    ));
 
 //    model.addShapes(largerSphere, movableSphere, bottomSphere, plane);
-    model.addShapes(plane,nearbyPlane,frontSphere);
-    model.addLight(new Light(new double[]{0,-1,1},0.9));
+
+//    Sphere lightSphere = new Sphere(new double[]{3,0,0},0.5,new double[]{1,1,1});
+//    lightSphere.setTransparency(0.9);
+//    Sphere lampshadeSphere = new Sphere(new double[]{3,0,0},1.2,new double[]{1.0,0.7,0}); //I lost like 45 minutes of my life because I put a 7 instead of a 0.7
+//    lampshadeSphere.setTransparency(0.5);
+//    Sphere lightedSphere = new Sphere(new double[]{4.3,2,2},0.7,new double[]{1,0,0});
+//    model.addShapes(lightSphere,lightedSphere,lampshadeSphere);
+//    model.addLight(new Light(new double[]{3,0,0},0.85));
+
+//    model.addShapes(plane,nearbyPlane,frontSphere);
+//
+//    model.addShape(largerSphere);
+    double[] sunCenter = new double[]{0,4.5,0};
+//    model.addLight(new Light(LinearUtil.vectorAdd(sunCenter,new double[]{0,0,-1}),0.9));
+    model.addLight(new Light(sunCenter,0.9));
+//    model.addLight(new Light(LinearUtil.vectorAdd(sunCenter,new double[]{0,0,1}),0.9));
+
+    System.out.println("Earth center: " + Arrays.toString(earthCenter));
+    double[] earthToSun = LinearUtil.vectorSubtract(sunCenter,earthCenter);
+    System.out.println("Earth to sun: " + Arrays.toString(earthToSun));
+    double[] moonCenter = LinearUtil.vectorAdd(LinearUtil.vectorScale(1./4,earthToSun),earthCenter);
+    System.out.println("Moon center: " + Arrays.toString(moonCenter));
+    double[] earthToMoon = LinearUtil.vectorSubtract(moonCenter,earthCenter);
+    System.out.println("Earth to moon: " + Arrays.toString(earthToMoon));
+    Sphere moonSphere = new Sphere(moonCenter,0.25,new double[]{0,0,0});
+    moonSphere.setTexture("raytracing/rayshape/earthtexture.jpg");
+    model.addShapes(moonSphere,earthSphere);
+
     return model;
   }
 
@@ -210,12 +238,8 @@ public class TaskTest extends Application {
     for (int y = 0; y < sectorSize; y ++) {
       for (int x = 0; x < sectorSize; x ++) {
         double[] pixelColor = myModel.generatePixelRgb(x+startX,y+startY);
+        assert pixelColor != null;
         writer.setColor(x+startX,y+startY,Color.color(pixelColor[0],pixelColor[1],pixelColor[2]));
-//        for (int count = 0; count < STALL_CYCLES; count ++) {
-//          //do nothing
-//          writer.setColor();
-//        }
-//        writer.setColor(x+startX,y+startY, Color.YELLOW);
       }
     }
   }
@@ -244,6 +268,10 @@ public class TaskTest extends Application {
 //            myGifWriter.writeGifFrame(SIDE_LENGTH,SIDE_LENGTH,image.getPixelReader());
             onComplete.accept(null);
           }
+        });
+        sectorTask.setOnFailed(event -> {
+          System.out.println(event.toString());
+          System.out.println(Arrays.toString(sectorTask.getException().getStackTrace()));
         });
         drawThreads.add(sectorTask);
       }

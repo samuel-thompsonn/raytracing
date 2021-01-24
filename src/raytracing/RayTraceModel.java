@@ -98,90 +98,6 @@ public class RayTraceModel {
     return intersectingShape;
   }
 
-  public void generateImageCallback(double[][][] buffer, double pixelWidth, double pixelHeight, double[] cameraPos, double[] cameraDirection, double fovDegrees,int numBounces, Consumer<double[][][]> callback) {
-    generateImage(buffer, pixelWidth, pixelHeight, cameraPos, cameraDirection, fovDegrees, numBounces);
-    new Thread(new Runnable() {
-      @Override
-      public void run() {
-        int count = 0;
-        while(count < 20) {
-          if (isDirty()) {
-            resetDirty();
-            count = 0;
-          }
-          else {
-            count++;
-          }
-        }
-        callback.accept(buffer);
-      }
-    }).start();
-  }
-
-  public void generateImage(double[][][] buffer, double pixelWidth, double pixelHeight, double[] cameraPos, double[] cameraDirection, double fovDegrees,int numBounces) {
-    System.out.println("Generating image...");
-    if (pixelWidth >= 32 && pixelHeight >= 32) {
-      for (int j = 0; j < pixelHeight; j +=32) {
-        for (int i = 0; i < pixelWidth; i+=32) {
-          int startX = i;
-          int startY = j;
-          Thread sectorGenerator =
-                  new Thread(new Runnable() {
-            @Override
-            public void run() {
-              for (int i = startX; i < 32 + startX; i ++) {
-                for (int j = startY; j < 32 + startY; j ++) {
-                  double horizontalAngle = (-fovDegrees + ((i * (1.0/ pixelWidth)) * fovDegrees * 2)) * ((2*Math.PI)/360);
-                  double verticalAngle = ((90-fovDegrees) + ((j * (1.0/ pixelHeight)) * fovDegrees * 2)) * ((2*Math.PI)/360);
-                  double x = Math.sin(verticalAngle) * Math.cos(horizontalAngle);
-                  double y = Math.sin(verticalAngle) * Math.sin(horizontalAngle);
-                  double z = Math.cos(verticalAngle);
-                  double[] direction = {x,y,z};
-                  double[] color = getRayColor(cameraPos,direction,numBounces,1.0);
-                  buffer[i][j][0] = color[0];
-                  buffer[i][j][1] = color[1];
-                  buffer[i][j][2] = color[2];
-                  dirtyBit = true;
-                }
-              }
-            }
-          });
-          sectorGenerator.setPriority(Thread.MIN_PRIORITY);
-          sectorGenerator.start();
-//          try {
-//            sectorGenerator.join();
-//          } catch (InterruptedException e) {
-//            System.out.println("Failed to join...");
-//            //don't join the thread then.
-//          }
-        }
-      }
-      return;
-    }
-    for (int j = 0; j < pixelHeight; j ++) {
-      for (int i = 0; i < pixelWidth; i ++) {
-        double horizontalAngle = (-fovDegrees + ((i * (1.0/ pixelWidth)) * fovDegrees * 2)) * ((2*Math.PI)/360);
-        double verticalAngle = ((90-fovDegrees) + ((j * (1.0/ pixelHeight)) * fovDegrees * 2)) * ((2*Math.PI)/360);
-        double x = Math.sin(verticalAngle) * Math.cos(horizontalAngle);
-        double y = Math.sin(verticalAngle) * Math.sin(horizontalAngle);
-        double z = Math.cos(verticalAngle);
-        double[] direction = {x,y,z};
-        int finalI = i;
-        int finalJ = j;
-        new Thread(new Runnable() {
-          @Override
-          public void run() {
-            double[] color = getRayColor(cameraPos,direction,numBounces,1.0);
-            buffer[finalI][finalJ][0] = color[0];
-            buffer[finalI][finalJ][1] = color[1];
-            buffer[finalI][finalJ][2] = color[2];
-            dirtyBit = true;
-          }
-        }).start();
-      }
-    }
-  }
-
   public double[] generatePixelRgb(int i, int j) {
     double horizontalAngle = (-myFov + ((i * (1.0/ myImageWidth)) * myFov * 2)) * ((2*Math.PI)/360);
     double verticalAngle = ((90-myFov) + ((j * (1.0/ myImageHeight)) * myFov * 2)) * ((2*Math.PI)/360);
@@ -192,22 +108,17 @@ public class RayTraceModel {
     return getRayColor(myCameraPos,direction,myNumBounces,1.0);
   }
 
-  public boolean isDirty() {
-    return dirtyBit;
-  }
-
-  public void resetDirty() {
-    dirtyBit = false;
-  }
-
   public double[] getRayColor(double[] eyePos, double[] direction, int numBounces, double refraction) {
-    if (numBounces < 0) {
+//    System.out.println("Opening stack frame with numBounces = " + numBounces);
+    if (numBounces < 0) {;
+//      System.out.println("Closing stack frame with numBounces = " + numBounces);
       return myBackgroundColor.clone();
     }
     //1. Find closest intersection among all spheres
     double[] closestIntersection = calculateShapeIntersection(eyePos,direction);
     RayShape intersectingShape = findIntersectingShape(eyePos,direction);
     if (closestIntersection == null) {
+//      System.out.println("Closing stack frame with numBounces = " + numBounces);
       return myBackgroundColor.clone();
     }
 
@@ -218,26 +129,29 @@ public class RayTraceModel {
     for (Light light : getLights()) {
       double[] lightDirection = LinearUtil.normalizedVector(LinearUtil.vectorSubtract(light.getPosition(),closestIntersection));
       double lightAngle = Math.abs(LinearUtil.angleBetweenVectors(normalDirection,lightDirection));
-      if (lightAngle > Math.PI / 2) {
-        continue;
-      }
+//      if (lightAngle > Math.PI / 2) {
+//        continue;
+//      }
       double[] lightIntersection = calculateShapeIntersection(closestIntersection,lightDirection);
       RayShape lightIntersectionSphere = findIntersectingShape(closestIntersection,lightDirection);
       double lightThroughObjects = 1.0;
-      if (lightIntersection != null) { //makes no sense because transparent objects can't block light
+      if (lightIntersection != null) {
         lightThroughObjects = lightIntersectionSphere.getTransparency();
       }
-      double albedoProportion = 1-(lightAngle / (Math.PI/2));
-      double lightProportion = albedoProportion * lightThroughObjects;
+      double albedoProportion = Math.abs((lightAngle / (Math.PI/2)) - 1);
+      double transparencyFactor = (lightAngle > Math.PI/2)? intersectingShape.getTransparency() : 1.0;
+//      double albedoProportion = 1;
+      double lightProportion = albedoProportion * lightThroughObjects * transparencyFactor;
       lightAmount += lightProportion * light.getStrength();
     }
 
     //3. Use light strength and color
     lightAmount = Math.max(Math.min(lightAmount,1.0),0.0);
+    double[] shapeColor = intersectingShape.getColor(closestIntersection);
     double[] localColor = new double[] {
-            lightAmount * intersectingShape.getColor()[0],
-            lightAmount * intersectingShape.getColor()[1],
-            lightAmount * intersectingShape.getColor()[2],
+            lightAmount * shapeColor[0],
+            lightAmount * shapeColor[1],
+            lightAmount * shapeColor[2],
     };
     double[] reflectedRay = LinearUtil.vectorSubtract(direction,LinearUtil.vectorScale(2,LinearUtil.projectionOntoVector(normalDirection,direction)));
     double[] orthogonalToNormal = LinearUtil.vectorSubtract(direction,LinearUtil.projectionOntoVector(normalDirection,direction));
@@ -250,9 +164,11 @@ public class RayTraceModel {
     double[] refractedRay = LinearUtil.normalizedVector(LinearUtil.vectorAdd(normalDirection,LinearUtil.vectorScale(Math.cos(newAngle),orthogonalToNormal)));
 
     double[] transparencyColor = getRayColor(closestIntersection,direction,numBounces-1,refraction);
+
     double[] postReflectionColor = interpolateColors(reflectedColor,localColor,intersectingShape.getReflectivity());
     double[] postOpacityColor = interpolateColors(transparencyColor,postReflectionColor,intersectingShape.getTransparency());
 
+//    System.out.println("Closing stack frame with numBounces = " + numBounces);
     return postOpacityColor;
   }
 

@@ -46,6 +46,7 @@ public class LinearUtil {
 
   public static double angleBetweenVectors(double[] v1, double[] v2) {
     double cosTheta = dotProduct(v1,v2) / (vectorMagnitude(v1)*vectorMagnitude(v2));
+    cosTheta = Math.max(Math.min(cosTheta,1.0),-1.0);
     return Math.acos(cosTheta);
   }
 

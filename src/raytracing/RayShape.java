@@ -8,7 +8,7 @@ public interface RayShape {
 
   void setPosition(double[] position);
 
-  double[] getColor();
+  double[] getColor(double[] surfacePoint);
 
   double getReflectivity();
 
