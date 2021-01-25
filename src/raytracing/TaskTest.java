@@ -10,6 +10,8 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import raytracing.linear_util.RayVector;
+import raytracing.linear_util.SimpleRayVector;
 import raytracing.rayshape.Sphere;
 import raytracing.rayshape.TriPlane;
 
@@ -21,13 +23,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.function.Consumer;
 
 public class TaskTest extends Application {
 
   public static final int STALL_CYCLES = 100;
   public static final int SIDE_LENGTH = 512;
-  public static final int SECTOR_SIZE = 512;
+  public static final int SECTOR_SIZE = 64;
   public static final double SCENE_SIZE = 512;
   private int numCompletedThreads = 0;
   private RayTraceModel myModel;
@@ -39,6 +42,7 @@ public class TaskTest extends Application {
   private Sphere largerSphere;
   private int numFrameIterations; //Having this thing is TERRIBLE design and suggests a need for a new class.
   private Scene myScene;
+  private Group myImageViewGroup;
 
   @Override
   public void start(Stage primaryStage) throws Exception {
@@ -54,8 +58,8 @@ public class TaskTest extends Application {
 
     myGifWriter = new GifWritingTest();
 
-    Group imageViewGroup = new Group();
-    imageViewGroup.getChildren().add(myImage);
+    myImageViewGroup = new Group();
+    myImageViewGroup.getChildren().add(myImage);
 
     long before = System.currentTimeMillis();
     for (int i = 0; i < SIDE_LENGTH; i ++) {
@@ -66,7 +70,7 @@ public class TaskTest extends Application {
     long elapsed = System.currentTimeMillis() - before;
     System.out.println("Clearing screen takes " + elapsed + " milliseconds.");
 
-    myScene = new Scene(imageViewGroup, SCENE_SIZE, SCENE_SIZE);
+    myScene = new Scene(myImageViewGroup, SCENE_SIZE, SCENE_SIZE);
 
     myScene.setOnKeyPressed(event -> {
       if (event.getCode().equals(KeyCode.SPACE)) {
@@ -115,13 +119,13 @@ public class TaskTest extends Application {
         //Found the problem: I was passing in the side length as the sector size, so I wouldn't
         // expect any parallelism.
         double initialAngle = 0;
-        movableSphere.setPosition(new double[]{4+(2*Math.cos(initialAngle)),0.4+(2*Math.sin(initialAngle)),0.8+(2*Math.sin(initialAngle+Math.PI))});
-        largerSphere.setPosition(new double[]{4-(0.2*Math.cos(initialAngle)),0.4-(0.2*Math.sin(initialAngle)),0.0-(0.2*Math.sin(initialAngle+Math.PI))});
+        movableSphere.setPosition(new SimpleRayVector(4+(2*Math.cos(initialAngle)),0.4+(2*Math.sin(initialAngle)),0.8+(2*Math.sin(initialAngle+Math.PI))));
+        largerSphere.setPosition(new SimpleRayVector(4-(0.2*Math.cos(initialAngle)),0.4-(0.2*Math.sin(initialAngle)),0.0-(0.2*Math.sin(initialAngle+Math.PI))));
         writeFramesConcurrently(numFrames,myWritableImage,SIDE_LENGTH,SECTOR_SIZE,aVoid -> {
           numFrameIterations++;
           double angle = 2 * Math.PI * (numFrameIterations*1. / numFrames);
-          movableSphere.setPosition(new double[]{4+(2*Math.cos(angle)),0.4+(2*Math.sin(angle)),0.8+(2*Math.sin(angle+Math.PI))});
-          largerSphere.setPosition(new double[]{4-(0.2*Math.cos(angle)),0.4-(0.2*Math.sin(angle)),0.0-(0.2*Math.sin(angle+Math.PI))});
+          movableSphere.setPosition(new SimpleRayVector(4+(2*Math.cos(angle)),0.4+(2*Math.sin(angle)),0.8+(2*Math.sin(angle+Math.PI))));
+          largerSphere.setPosition(new SimpleRayVector(4-(0.2*Math.cos(angle)),0.4-(0.2*Math.sin(angle)),0.0-(0.2*Math.sin(angle+Math.PI))));
           myGifWriter.writeGifFrame(SIDE_LENGTH,SIDE_LENGTH,myWritableImage.getPixelReader());
         });
         System.out.println("Completed GIF of " + numFrames + " frames.");
@@ -151,15 +155,15 @@ public class TaskTest extends Application {
     model.setFov(65);
     model.setNumBounces(1);
     model.setImageSize(SIDE_LENGTH, SIDE_LENGTH);
-    model.setCameraPos(new double[]{0,0,0});
+    model.setCameraPos(new SimpleRayVector(0,0,0));
     model.setBackgroundColor(new double[]{0,0,0});
 
-    largerSphere = new Sphere(new double[]{4,0.4,0},1.2,new double[]{1.0,0.7,0.0});
+    largerSphere = new Sphere(new SimpleRayVector(4,0.4,0),1.2,new double[]{1.0,0.7,0.0});
 
-    movableSphere = new Sphere(new double[]{4,0.4,0.8},0.5,new double[]{0.8,0.1,0.1});
+    movableSphere = new Sphere(new SimpleRayVector(4,0.4,0.8),0.5,new double[]{0.8,0.1,0.1});
     movableSphere.setReflectivity(0.1);
 
-    Sphere bottomSphere = new Sphere(new double[]{3.5,0.0,-6},4,new double[]{0.5,0.5,0.5});
+    Sphere bottomSphere = new Sphere(new SimpleRayVector(3.5,0.0,-6),4,new double[]{0.5,0.5,0.5});
     bottomSphere.setReflectivity(0.4);
 
 //    TriPlane plane = new TriPlane(List.of( //Produces an error where it fills a vertical bar onscreen.
@@ -169,20 +173,20 @@ public class TaskTest extends Application {
 //    ));
 
     TriPlane plane = new TriPlane(List.of(
-            new double[]{3,0,-1},
-            new double[]{3,0,2},
-            new double[]{4,6,2}
+            new SimpleRayVector(3,0,-1),
+            new SimpleRayVector(3,0,2),
+            new SimpleRayVector(4,6,2)
     ));
 
     TriPlane nearbyPlane = new TriPlane(List.of(
-            new double[]{2.8,0,-1},
-            new double[]{4,-6,2},
-            new double[]{2.8,0,2}
+            new SimpleRayVector(2.8,0,-1),
+            new SimpleRayVector(4,-6,2),
+            new SimpleRayVector(2.8,0,2)
     ));
 
-    double[] earthCenter = new double[]{3.7,0,0.0};
+    RayVector earthCenter = new SimpleRayVector(3.7,0,0.0);
     Sphere earthSphere = new Sphere(earthCenter,1.0,new double[]{1.0,0,0});
-    earthSphere.setTexture("raytracing/rayshape/earthtexture_old.jpg");
+    earthSphere.setTexture("raytracing/rayshape/resources/earthtexture_clouds.jpg");
 
 //    TriPlane secondPlane = new TriPlane(List.of(
 //            new double[]{1,0,1},
@@ -203,21 +207,27 @@ public class TaskTest extends Application {
 //    model.addShapes(plane,nearbyPlane,frontSphere);
 //
 //    model.addShape(largerSphere);
-    double[] sunCenter = new double[]{0,4.5,0};
+      RayVector sunCenter = new SimpleRayVector(-100,100,0);
+      double sunRadius = 1;
+      int numLights = 1000;
+      for (int i = 0; i < numLights; i ++) {
+        RayVector offset = new SimpleRayVector(new Random().nextDouble() * sunRadius,0,new Random().nextDouble() * sunRadius);
+        model.addLight(new Light(sunCenter.add(offset),0.9));
+      }
 //    model.addLight(new Light(LinearUtil.vectorAdd(sunCenter,new double[]{0,0,-1}),0.9));
-    model.addLight(new Light(sunCenter,0.9));
 //    model.addLight(new Light(LinearUtil.vectorAdd(sunCenter,new double[]{0,0,1}),0.9));
 
-    System.out.println("Earth center: " + Arrays.toString(earthCenter));
-    double[] earthToSun = LinearUtil.vectorSubtract(sunCenter,earthCenter);
-    System.out.println("Earth to sun: " + Arrays.toString(earthToSun));
-    double[] moonCenter = LinearUtil.vectorAdd(LinearUtil.vectorScale(1./4,earthToSun),earthCenter);
-    System.out.println("Moon center: " + Arrays.toString(moonCenter));
-    double[] earthToMoon = LinearUtil.vectorSubtract(moonCenter,earthCenter);
-    System.out.println("Earth to moon: " + Arrays.toString(earthToMoon));
+    System.out.println("Earth center: " + earthCenter.toString());
+    RayVector earthToSun = sunCenter.subtract(earthCenter);
+    System.out.println("Earth to sun: " + earthToSun.toString());
+//    RayVector moonCenter = LinearUtil.vectorAdd(LinearUtil.vectorScale(1./4,earthToSun),earthCenter);
+    RayVector moonCenter = earthToSun.normalized().scale(2.5).add(earthCenter);
+    System.out.println("Moon center: " + moonCenter.toString());
+    RayVector earthToMoon = moonCenter.subtract(earthCenter);
+    System.out.println("Earth to moon: " + earthToMoon.toString());
     Sphere moonSphere = new Sphere(moonCenter,0.25,new double[]{0,0,0});
-    moonSphere.setTexture("raytracing/rayshape/earthtexture.jpg");
-    model.addShapes(moonSphere,earthSphere);
+    moonSphere.setTexture("raytracing/rayshape/resources/moontexture.jpg");
+    model.addShapes(earthSphere, moonSphere);
 
     return model;
   }
@@ -264,6 +274,11 @@ public class TaskTest extends Application {
           if (numCompletedThreads >= Math.pow(sideLength*1. / sectorSize,2)) {
             long elapsedTime = System.currentTimeMillis() - startTime;
             System.out.println("All " + numCompletedThreads + " threads completed in " + elapsedTime / 1000. + " seconds.");
+            System.out.println("my writeable image: " + myWritableImage);
+            System.out.println("my image view: " + myImage);
+            System.out.println("my pixel writer: " + myPixelWriter);
+            System.out.println("my scene: " + myScene);
+            System.out.println("my group: " + myImageViewGroup);
             numCompletedThreads = 0;
 //            myGifWriter.writeGifFrame(SIDE_LENGTH,SIDE_LENGTH,image.getPixelReader());
             onComplete.accept(null);

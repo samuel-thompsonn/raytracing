@@ -4,44 +4,45 @@ import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
 import javafx.scene.paint.Color;
 import raytracing.HomogeneousShape;
-import raytracing.LinearUtil;
+import raytracing.linear_util.RayVector;
 
 public class Sphere extends HomogeneousShape {
 
-  private double[] myCenter;
+  private RayVector myCenter;
   private double myRadius;
   private Image myTextureImage;
 
-  public Sphere(double[] center, double radius) {
+  public Sphere(RayVector center, double radius) {
     this(center,radius,new double[]{1,1,1},0);
   }
 
-  public Sphere(double[] center, double radius, double[] color) {
+  public Sphere(RayVector center, double radius, double[] color) {
     this(center,radius,color,0);
   }
 
-  public Sphere(double[] center, double radius, double[] color,double reflectivity) {
+  public Sphere(RayVector center, double radius, double[] color,double reflectivity) {
     super(color,reflectivity,0);
     myCenter = center;
     myRadius = radius;
     setReflectivity(reflectivity);
-    myTextureImage = new Image("raytracing/rayshape/earthtexture.jpg");
+    myTextureImage = new Image("raytracing/rayshape/resources/moontexture.jpg");
   }
 
   @Override
-  public void changePosition(double[] positionChange) {
-    myCenter = LinearUtil.vectorAdd(myCenter,positionChange);
+  public void changePosition(RayVector positionChange) {
+//    myCenter = LinearUtil.vectorAdd(myCenter,positionChange);
+    myCenter = myCenter.add(positionChange);
   }
 
   @Override
-  public void setPosition(double[] position) {
+  public void setPosition(RayVector position) {
     myCenter = position;
   }
 
   @Override
-  public double[] rayIntersection(double[] eye, double[] direction) {
-    double d = LinearUtil.dotProduct(LinearUtil.vectorSubtract(eye,myCenter),direction);
-    double b = Math.pow(LinearUtil.vectorMagnitude(LinearUtil.vectorSubtract(eye,myCenter)),2);
+  public RayVector rayIntersection(RayVector eye, RayVector direction) {
+    double d = eye.subtract(myCenter).dotProduct(direction);
+    double b = Math.pow(eye.subtract(myCenter).magnitude(),2);
     double radicalValue = Math.pow(d,2) - (b - Math.pow(myRadius,2));
     if (radicalValue < 0) {
       return null;
@@ -58,14 +59,16 @@ public class Sphere extends HomogeneousShape {
       if (a < TOLERANCE_MARGIN) {
         return null;
       }
-      return LinearUtil.vectorAdd(eye,LinearUtil.vectorScale(a,direction));
+//      return LinearUtil.vectorAdd(eye,LinearUtil.vectorScale(a,direction));
+      return direction.scale(a).add(eye);
     }
   }
 
   @Override
-  public double[] getColor(double[] surfacePoint) {
+  public double[] getColor(RayVector surfacePoint) {
     PixelReader reader = myTextureImage.getPixelReader();
-    double[] direction = LinearUtil.normalizedVector(LinearUtil.vectorSubtract(surfacePoint,myCenter));
+//    double[] direction = LinearUtil.normalizedVector(LinearUtil.vectorSubtract(surfacePoint,myCenter));
+    RayVector direction = surfacePoint.subtract(myCenter).normalized();
     double[] angles = getThetaPhi(direction);
 
     double thetaProportion = angles[0] / (Math.PI*2);
@@ -94,20 +97,20 @@ public class Sphere extends HomogeneousShape {
     };
   }
 
-  private static double[] getThetaPhi(double[] surfacePoint) {
-    double[] direction = LinearUtil.vectorSubtract(surfacePoint,new double[]{0,0,0});
-    double theta = Math.atan(direction[1]/direction[0]);
+  private double[] getThetaPhi(RayVector direction) {
+//    double[] direction = LinearUtil.vectorSubtract(surfacePoint,new double[]{0,0,0});
+    double theta = Math.atan(direction.y()/direction.x());
     //if in first quadrant, add 2pi
-    if (theta < 0 && direction[0] >= 0) {
+    if (theta < 0 && direction.x() >= 0) {
       theta += 2*Math.PI;
     }
     //if in second or third quadrant, add pi to the angle to reflect it
-    else if (direction[0] < 0){
+    else if (direction.x() < 0){
       theta += Math.PI;
     }
     //If in fourth quadrant, do nothing
 
-    double phi = Math.atan((Math.sqrt((direction[0]*direction[0])+(direction[1]*direction[1])))/direction[2]);
+    double phi = Math.atan((Math.sqrt((direction.x()*direction.x())+(direction.y()*direction.y())))/direction.z());
     if (phi < 0) {
       phi += Math.PI;
     }
@@ -115,8 +118,9 @@ public class Sphere extends HomogeneousShape {
   }
 
   @Override
-  public double[] getNormal(double[] surfacePoint) {
-    return LinearUtil.normalizedVector(LinearUtil.vectorSubtract(surfacePoint,myCenter));
+  public RayVector getNormal(RayVector surfacePoint) {
+//    return LinearUtil.normalizedVector(LinearUtil.vectorSubtract(surfacePoint,myCenter));
+    return surfacePoint.subtract(myCenter).normalized();
   }
 
   public void setTexture(String url) {

@@ -1,6 +1,10 @@
 package raytracing;
 
+import raytracing.linear_util.RayVector;
+import raytracing.linear_util.SimpleRayVector;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -14,7 +18,7 @@ public class RayTraceModel {
   private int myNumBounces;
   private int myImageWidth;
   private int myImageHeight;
-  private double[] myCameraPos;
+  private RayVector myCameraPos;
   private double[] myBackgroundColor;
 
   public RayTraceModel() {
@@ -35,7 +39,7 @@ public class RayTraceModel {
     myNumBounces = numBounces;
   }
 
-  public void setCameraPos(double[] cameraPos) {
+  public void setCameraPos(RayVector cameraPos) {
     myCameraPos = cameraPos;
   }
 
@@ -56,11 +60,11 @@ public class RayTraceModel {
     return myLights;
   }
 
-  public double[] calculateShapeIntersection(double[] start, double[] direction) {
-    double[] closestIntersection = null;
+  public RayVector calculateShapeIntersection(RayVector start, RayVector direction) {
+    RayVector closestIntersection = null;
+    RayVector nearestIntersection = null;
     for (RayShape shape : myShapes) {
-//      double[] intersection = LinearUtil.getSphereIntersection(start,direction,sphere.getCenter(),sphere.getRadius());
-      double[] intersection = shape.rayIntersection(start,direction);
+      RayVector intersection = shape.rayIntersection(start,direction);
       //Check if this intersection is closer to the camera than closestIntersection
       if (intersection == null) {
         continue;
@@ -68,20 +72,20 @@ public class RayTraceModel {
       if (closestIntersection == null) {
         closestIntersection = intersection;
       }
-      else if (LinearUtil.vectorMagnitude(LinearUtil.vectorSubtract(intersection,start)) <
-              LinearUtil.vectorMagnitude(LinearUtil.vectorSubtract(closestIntersection,start))) {
+      else if (intersection.subtract(start).magnitude() <
+              closestIntersection.subtract(start).magnitude()) {
         closestIntersection = intersection;
       }
     }
     return closestIntersection;
   }
 
-  public RayShape findIntersectingShape(double[] start, double[] direction) {
-    double[] closestIntersection = null;
+  public RayShape findIntersectingShape(RayVector start, RayVector direction) {
+    RayVector closestIntersection = null;
     RayShape intersectingShape = null;
     for (RayShape shape : myShapes) {
 //      double[] intersection = LinearUtil.getSphereIntersection(start, direction, sphere.getCenter(), sphere.getRadius());
-      double[] intersection = shape.rayIntersection(start, direction);
+      RayVector intersection = shape.rayIntersection(start, direction);
       //Check if this intersection is closer to the camera than closestIntersection
       if (intersection == null) {
         continue;
@@ -89,8 +93,8 @@ public class RayTraceModel {
       if (closestIntersection == null) {
         closestIntersection = intersection;
         intersectingShape = shape;
-      } else if (LinearUtil.vectorMagnitude(LinearUtil.vectorSubtract(intersection, start)) <
-              LinearUtil.vectorMagnitude(LinearUtil.vectorSubtract(closestIntersection, start))) {
+      } else if (intersection.subtract(start).magnitude() <
+                closestIntersection.subtract(start).magnitude()) {
         closestIntersection = intersection;
         intersectingShape = shape;
       }
@@ -104,38 +108,36 @@ public class RayTraceModel {
     double x = Math.sin(verticalAngle) * Math.cos(horizontalAngle);
     double y = Math.sin(verticalAngle) * Math.sin(horizontalAngle);
     double z = Math.cos(verticalAngle);
-    double[] direction = {x,y,z};
+    RayVector direction = new SimpleRayVector(x,y,z);
     return getRayColor(myCameraPos,direction,myNumBounces,1.0);
   }
 
-  public double[] getRayColor(double[] eyePos, double[] direction, int numBounces, double refraction) {
-//    System.out.println("Opening stack frame with numBounces = " + numBounces);
+  public double[] getRayColor(RayVector eyePos, RayVector direction, int numBounces, double refraction) {
     if (numBounces < 0) {;
-//      System.out.println("Closing stack frame with numBounces = " + numBounces);
       return myBackgroundColor.clone();
     }
     //1. Find closest intersection among all spheres
-    double[] closestIntersection = calculateShapeIntersection(eyePos,direction);
+    RayVector closestIntersection = calculateShapeIntersection(eyePos,direction);
     RayShape intersectingShape = findIntersectingShape(eyePos,direction);
     if (closestIntersection == null) {
-//      System.out.println("Closing stack frame with numBounces = " + numBounces);
       return myBackgroundColor.clone();
     }
 
     //2. Draw a path from the intersection to light source
     double lightAmount = 0;
 //    double[] normalDirection = LinearUtil.normalizedVector(LinearUtil.vectorSubtract(closestIntersection,intersectingShape.getPosition()));
-    double[] normalDirection = intersectingShape.getNormal(closestIntersection);
+    RayVector normalDirection = intersectingShape.getNormal(closestIntersection);
     for (Light light : getLights()) {
-      double[] lightDirection = LinearUtil.normalizedVector(LinearUtil.vectorSubtract(light.getPosition(),closestIntersection));
-      double lightAngle = Math.abs(LinearUtil.angleBetweenVectors(normalDirection,lightDirection));
-//      if (lightAngle > Math.PI / 2) {
-//        continue;
-//      }
-      double[] lightIntersection = calculateShapeIntersection(closestIntersection,lightDirection);
+//      double[] lightDirection = LinearUtil.normalizedVector(LinearUtil.vectorSubtract(light.getPosition(),closestIntersection));
+//      double lightAngle = Math.abs(LinearUtil.angleBetweenVectors(normalDirection,lightDirection));
+//      double[] lightIntersection = calculateShapeIntersection(closestIntersection,lightDirection);
+//      RayShape lightIntersectionSphere = findIntersectingShape(closestIntersection,lightDirection);
+      RayVector lightDirection = light.getPosition().subtract(closestIntersection).normalized();
+      double lightAngle = Math.abs(normalDirection.angleBetween(lightDirection));
+      RayVector lightIntersection = calculateShapeIntersection(closestIntersection,lightDirection);
       RayShape lightIntersectionSphere = findIntersectingShape(closestIntersection,lightDirection);
       double lightThroughObjects = 1.0;
-      if (lightIntersection != null) {
+      if (lightIntersection != null && lightIntersectionSphere != intersectingShape) {
         lightThroughObjects = lightIntersectionSphere.getTransparency();
       }
       double albedoProportion = Math.abs((lightAngle / (Math.PI/2)) - 1);
@@ -153,15 +155,17 @@ public class RayTraceModel {
             lightAmount * shapeColor[1],
             lightAmount * shapeColor[2],
     };
-    double[] reflectedRay = LinearUtil.vectorSubtract(direction,LinearUtil.vectorScale(2,LinearUtil.projectionOntoVector(normalDirection,direction)));
-    double[] orthogonalToNormal = LinearUtil.vectorSubtract(direction,LinearUtil.projectionOntoVector(normalDirection,direction));
+//    double[] reflectedRay = LinearUtil.vectorSubtract(direction,LinearUtil.vectorScale(2,LinearUtil.projectionOntoVector(normalDirection,direction)));
+//    double[] orthogonalToNormal = LinearUtil.vectorSubtract(direction,LinearUtil.projectionOntoVector(normalDirection,direction));
+    RayVector reflectedRay = direction.subtract(direction.projectionOnto(normalDirection).scale(2));
+    RayVector orthogonalToNormal = direction.subtract(direction.projectionOnto(normalDirection));
 
     double[] reflectedColor = getRayColor(closestIntersection,reflectedRay,numBounces-1,refraction);
 
     //Problem: There's nothing here to tell me whether I am entering or exiting a refracting material.
     double newRefraction = (refraction == 1.0)? 1.5 : 1.0;
-    double newAngle = Math.asin((refraction/newRefraction)*Math.sin(Math.abs(LinearUtil.angleBetweenVectors(direction,normalDirection))));
-    double[] refractedRay = LinearUtil.normalizedVector(LinearUtil.vectorAdd(normalDirection,LinearUtil.vectorScale(Math.cos(newAngle),orthogonalToNormal)));
+//    double newAngle = Math.asin((refraction/newRefraction)*Math.sin(Math.abs(LinearUtil.angleBetweenVectors(direction,normalDirection))));
+//    double[] refractedRay = LinearUtil.normalizedVector(LinearUtil.vectorAdd(normalDirection,LinearUtil.vectorScale(Math.cos(newAngle),orthogonalToNormal)));
 
     double[] transparencyColor = getRayColor(closestIntersection,direction,numBounces-1,refraction);
 

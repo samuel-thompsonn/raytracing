@@ -1,5 +1,7 @@
 package raytracing;
 
+import raytracing.linear_util.RayVector;
+
 public abstract class HomogeneousShape implements RayShape {
 
   private double[] myColor;
@@ -21,7 +23,7 @@ public abstract class HomogeneousShape implements RayShape {
   }
 
   @Override
-  public double[] getColor(double[] surfacePoint) {
+  public double[] getColor(RayVector surfacePoint) {
     return myColor;
   }
 

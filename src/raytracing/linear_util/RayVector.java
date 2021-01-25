@@ -1,21 +1,30 @@
 package raytracing.linear_util;
 
-public class RayVector {
-  public RayVector(double x, double y, double z) {
+public interface RayVector {
 
-  }
+  public double x();
 
-  public double x() {
-    return 0;
-  }
+  public double y();
 
-  public double y() {
-    return 0;
-  }
+  public double z();
 
-  public double z() {
-    return 0;
-  }
+  public RayVector scale(double scalar);
 
+  public double dotProduct(RayVector otherVector);
 
+  public RayVector subtract(RayVector otherVector);
+
+  public RayVector add(RayVector otherVector);
+
+  public double magnitude();
+
+  public RayVector normalized();
+
+  public double angleBetween(RayVector otherVector);
+
+  public RayVector projectionOnto(RayVector otherVector);
+
+  public RayVector crossProduct(RayVector otherVector);
+
+  public double elementAt(int index);
 }
